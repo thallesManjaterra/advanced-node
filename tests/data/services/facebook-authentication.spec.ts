@@ -1,24 +1,25 @@
 import { LoadFacebookUserApi } from "@/data/contracts/apis";
 import { FacebookAuthenticationService } from "@/data/services";
 import { AuthenticationError } from "@/domain/errors";
-import { mock } from "jest-mock-extended";
-class LoadFacebookUserApiSpy implements LoadFacebookUserApi {
-  token?: string;
-  callsCount = 0;
-  result = undefined;
-  async loadUser(
-    params: LoadFacebookUserApi.Params
-  ): Promise<LoadFacebookUserApi.Result> {
-    this.token = params.token;
-    this.callsCount += 1;
-    return this.result;
-  }
-}
+import { mock, MockProxy } from "jest-mock-extended";
+
+type SutTypes = {
+  sut: FacebookAuthenticationService;
+  loadFacebookUserApiSpy: MockProxy<LoadFacebookUserApi>;
+};
+
+const makeSut = (): SutTypes => {
+  const loadFacebookUserApiSpy = mock<LoadFacebookUserApi>();
+  const sut = new FacebookAuthenticationService(loadFacebookUserApiSpy);
+  return {
+    sut,
+    loadFacebookUserApiSpy,
+  };
+};
 
 describe("FacebookAuthenticationService", () => {
   it("should call LoadFacebookUserApi with correct params", async () => {
-    const loadFacebookUserApiSpy = mock<LoadFacebookUserApi>();
-    const sut = new FacebookAuthenticationService(loadFacebookUserApiSpy);
+    const { sut, loadFacebookUserApiSpy } = makeSut();
     await sut.perform({ token: "any_token" });
     expect(loadFacebookUserApiSpy.loadUser).toHaveBeenCalledWith({
       token: "any_token",
@@ -26,9 +27,8 @@ describe("FacebookAuthenticationService", () => {
     expect(loadFacebookUserApiSpy.loadUser).toHaveBeenCalledTimes(1);
   });
   it("should return AuthenticationError when LoadFacebookUserApi returns undefined", async () => {
-    const loadFacebookUserApiSpy = mock<LoadFacebookUserApi>();
+    const { sut, loadFacebookUserApiSpy } = makeSut();
     loadFacebookUserApiSpy.loadUser.mockResolvedValueOnce(undefined);
-    const sut = new FacebookAuthenticationService(loadFacebookUserApiSpy);
     const authResult = await sut.perform({ token: "any_token" });
     expect(authResult).toEqual(new AuthenticationError());
   });
