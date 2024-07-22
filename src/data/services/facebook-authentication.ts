@@ -4,12 +4,14 @@ import { AuthenticationError } from "@/domain/errors";
 import {
   CreateFacebookUserAccountRepository,
   LoadUserAccountRepository,
+  UpdateFacebookUserAccountRepository,
 } from "../contracts/repos";
 export class FacebookAuthenticationService {
   constructor(
     private readonly facebookApi: LoadFacebookUserApi,
     private readonly userAccountRepo: LoadUserAccountRepository &
-      CreateFacebookUserAccountRepository
+      CreateFacebookUserAccountRepository &
+      UpdateFacebookUserAccountRepository
   ) {}
   async perform(
     params: FacebookAuthentication.Params
@@ -18,7 +20,16 @@ export class FacebookAuthenticationService {
       token: params.token,
     });
     if (fbData !== undefined) {
-      await this.userAccountRepo.load({ email: fbData.email });
+      const accountData = await this.userAccountRepo.load({
+        email: fbData.email,
+      });
+      if (accountData?.name !== undefined) {
+        this.userAccountRepo.updateWithFacebook({
+          id: accountData.id,
+          name: accountData.name,
+          facebookId: fbData.facebookId,
+        });
+      }
       await this.userAccountRepo.createFromFacebook(fbData);
     }
     return new AuthenticationError();
